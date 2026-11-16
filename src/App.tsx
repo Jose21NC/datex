@@ -38,6 +38,7 @@ type Query = { variable: string; start: number; spot: Spot }
 
 const TAB_ORDER: Tab[] = ['trend', 'scan', 'compare', 'satellite', 'population', 'relate']
 
+
 export default function App() {
   const [phase, setPhase] = useState<Phase>('briefing')
   const [lang, setLang] = useState<Lang>('es')
@@ -53,6 +54,8 @@ export default function App() {
   const [askInfo, setAskInfo] = useState<string | null>(null)
   const [concern, setConcern] = useState('heat')
   const [placeType, setPlaceType] = useState<string | null>('city')
+  // Al llegar desde 'Ver la ciudad en 3D' del planeta, Satélite se desplaza a la sección de crecimiento urbano
+  const [growthScroll, setGrowthScroll] = useState(false)
   const [recommended, setRecommended] = useState<Variable[]>([])
   const [variable, setVariable] = useState('T2M_MIN')
   const [start, setStart] = useState(1990)
@@ -370,6 +373,10 @@ export default function App() {
             years={years}
             busy={busy}
             onLaunchStudio={() => investigate({ variable, start, spot })}
+            onOpenCity={() => {
+              setGrowthScroll(true)
+              investigate({ variable, start, spot }, 'satellite')
+            }}
           />
         )}
 
@@ -487,6 +494,8 @@ export default function App() {
                 lon={query.spot.lon}
                 label={query.spot.label}
                 lang={lang}
+                scrollToGrowth={growthScroll}
+                onGrowthScrolled={() => setGrowthScroll(false)}
               />
             )}
 
