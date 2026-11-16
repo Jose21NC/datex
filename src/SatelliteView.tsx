@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, hasBackend, type LandCoverResponse, paced, type SatelliteImage } from './api'
-import { ExplainPanel } from './Explain'
 import { useNearestCity } from './cities'
 import { CITY, fmtNum, formatForecastText, LANDCOVER_LABEL, translateWarning, type Lang } from './i18n'
 import { SeriesChart } from './SeriesChart'
@@ -46,11 +45,18 @@ export function SatelliteView({
   const [coverRes, setCoverRes] = useState<{ key: string; cover: LandCoverResponse } | null>(null)
   const [pick, setPick] = useState<{ spot: string; i: number } | null>(null)
   const [errorList, setErrorList] = useState<{ spot: string; message: string }[]>([])
+  const [failedUrls, setFailedUrls] = useState<string[]>([])
+  const [imgBusy, setImgBusy] = useState(false)
 
-  const images = timeline?.spot === spot ? timeline.images : null
+  const rawImages = timeline?.spot === spot ? timeline.images : null
+  const images = rawImages ? rawImages.filter((im) => !failedUrls.includes(im.url)) : null
   const cover = coverRes?.key === coverKey ? coverRes.cover : null
-  const selected = pick?.spot === spot ? pick.i : Math.max(0, (images?.length ?? 1) - 1)
-  const setSelected = (i: number) => setPick({ spot, i })
+  const rawSelected = pick?.spot === spot ? pick.i : Math.max(0, (images?.length ?? 1) - 1)
+  const selected = Math.min(rawSelected, Math.max(0, (images?.length ?? 1) - 1))
+  const setSelected = (i: number) => {
+    setImgBusy(true)
+    setPick({ spot, i })
+  }
   const errors = errorList.filter((e) => e.spot === spot).map((e) => e.message)
 
   useEffect(() => {
@@ -131,16 +137,23 @@ export function SatelliteView({
       {errors.map((e) => (
         <p key={e} className="error" role="alert">{e}</p>
       ))}
-      {!images && <Loader label={copy.loadingImgs} />}
+      {!images && errors.length === 0 && <Loader label={copy.loadingImgs} />}
       {images && images.length === 0 && <p className="muted">{copy.noImgs}</p>}
 
       {images && img && (
         <div className="sat">
           <img
+            key={img.url}
             src={img.url}
             alt={`${label} (${img.year})`}
             width={640}
             height={640}
+            style={imgBusy ? { opacity: 0.45, transition: 'opacity 0.2s' } : undefined}
+            onLoad={() => setImgBusy(false)}
+            onError={() => {
+              setImgBusy(false)
+              setFailedUrls((prev) => (prev.includes(img.url) ? prev : [...prev, img.url]))
+            }}
           />
           <div className="sat-controls">
             <div className="sat-meta-badge">
@@ -261,7 +274,6 @@ export function SatelliteView({
                   ))}
                 </Card>
               )}
-              <ExplainPanel request={{ kind: 'landcover', lat, lon, place: label, to_year: toYear }} lang={lang} />
             </>
           )}
         </>

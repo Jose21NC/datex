@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { DIRECTION_ARROW, type Forecast, type TrendResponse } from './api'
-import { ExplainPanel } from './Explain'
 import {
   certaintyInfo,
   fmtNum,
@@ -23,7 +22,7 @@ export function TrendView({
   reliability,
   scenario,
   onScenario,
-  start,
+  start: _start,
   lang,
 }: {
   data: TrendResponse
@@ -160,19 +159,6 @@ export function TrendView({
           </div>
         )}
       </Card>
-
-      <ExplainPanel
-        request={{
-          kind: 'trend',
-          variable: t.variable,
-          lat: data.lat,
-          lon: data.lon,
-          place: where,
-          start,
-          to_year: toYear,
-        }}
-        lang={lang}
-      />
 
       <Card className="rigor-card">
         <Disclosure title={rig.summaryStudent}>
