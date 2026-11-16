@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, hasBackend, type LandCoverResponse, paced, type SatelliteImage } from './api'
-import { ExplainPanel } from './Explain'
 import { useNearestCity } from './cities'
 import { CITY, fmtNum, formatForecastText, LANDCOVER_LABEL, translateWarning, type Lang } from './i18n'
 import { SeriesChart } from './SeriesChart'
@@ -275,7 +274,6 @@ export function SatelliteView({
                   ))}
                 </Card>
               )}
-              <ExplainPanel request={{ kind: 'landcover', lat, lon, place: label, to_year: toYear }} lang={lang} />
             </>
           )}
         </>

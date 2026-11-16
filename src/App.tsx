@@ -166,11 +166,9 @@ export default function App() {
         ? (lang === 'en' ? (PLACE_TYPES_EN[ptRaw] ?? ptRaw) : (cat?.place_types[ptRaw] ?? '')).toLowerCase()
         : ''
       if (lang === 'es') {
-        const src = r.interpretation.source === 'claude' ? 'La IA detectó' : 'Las reglas detectaron'
-        setAskInfo(`${src}: ${concernText}${ptText ? ` en ${ptText}` : ''}${r.places.length ? ` · lugar “${r.places[0].name}” centrado en el planeta.` : '.'}`)
+        setAskInfo(`Interpretación: ${concernText}${ptText ? ` en ${ptText}` : ''}${r.places.length ? ` · lugar “${r.places[0].name}” centrado en el planeta.` : '.'}`)
       } else {
-        const src = r.interpretation.source === 'claude' ? 'AI detected' : 'Rules matched'
-        setAskInfo(`${src}: ${concernText}${ptText ? ` (${ptText})` : ''}${r.places.length ? ` · centered "${r.places[0].name}" on the globe.` : '.'}`)
+        setAskInfo(`Matched: ${concernText}${ptText ? ` (${ptText})` : ''}${r.places.length ? ` · centered "${r.places[0].name}" on the globe.` : '.'}`)
       }
     } catch (e) {
       setAskInfo(null)

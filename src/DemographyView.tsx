@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api, type Catalog, type DemographyResponse, paced } from './api'
-import { ExplainPanel } from './Explain'
 import {
   fmtNum, tDemography, translateWarning, tUnit, verdictLabel, type Lang,
 } from './i18n'
@@ -161,7 +160,6 @@ export function DemographyView({
           {data.forecast?.warnings.map((w) => (
             <p key={w} className="muted small">{translateWarning(w, lang)}</p>
           ))}
-          <ExplainPanel request={{ kind: 'demography', country: iso3, indicator, start, to_year: toYear }} lang={lang} />
         </>
       )}
     </div>

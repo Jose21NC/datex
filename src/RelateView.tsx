@@ -3,7 +3,6 @@ import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { api, type Catalog, paced, type RelateResponse } from './api'
-import { ExplainPanel } from './Explain'
 import {
   fmtNum, formatRelationText, pTextLang, tIndicator, translateWarning, tUnit, tVariable,
   type Lang,
@@ -345,20 +344,6 @@ export function RelateView({
               </ResponsiveContainer>
             </Card>
           </div>
-
-          <ExplainPanel
-            request={{
-              kind: 'relate',
-              variable: query.variable,
-              indicator,
-              country,
-              lat: query.lat,
-              lon: query.lon,
-              place: query.label.split(',')[0],
-              start: query.start,
-            }}
-            lang={lang}
-          />
         </>
       )}
     </div>
