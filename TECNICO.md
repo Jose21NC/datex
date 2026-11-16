@@ -101,6 +101,14 @@ El motor original es Python y está en `backend/app/services/trends.py`. `static
 
 Los p-valores de la t se aproximan con Peizer-Pratt porque en el navegador no hay tablas.
 
+## Modelo de crecimiento urbano
+
+`backend/scripts/build_city_growth.py` genera los escenarios precalculados en `public/static-api/city/` (como `managua.json` e `index.json`). Toma la cobertura del suelo anual de 10 m (Impact Observatory/Esri, Planetary Computer), la reproyecta a celdas de ~100 m, ajusta una regresión logística sobre las transiciones 2017–2023 y reparte el área construida futura (2030–2050) siguiendo la población urbana de la ONU. Es un escenario de tendencia, no un pronóstico.
+
+```bash
+cd backend && PYTHONPATH=. uv run python -u scripts/build_city_growth.py managua
+```
+
 ## Interfaz
 
 - **Tema:** blanco de base, navy `#00023d` para texto y acciones, turquesa `#56e1e8` solo como acento. Los colores viven en variables al inicio de `index.css`.

@@ -15,6 +15,10 @@ npm run dev
 
 Abre http://localhost:5173. Sin servidor, la web usa los datos precalculados de `public/static-api` y calcula en el navegador.
 
+## Crecimiento urbano 3D (Managua)
+
+En la pestaña **Satélite** (y desde el botón **Ver la ciudad en 3D** del globo cuando hay una ciudad cerca) se incluye un escenario de crecimiento urbano por celdas de ~100 m para Managua (`public/static-api/city/managua.json`), con expansión horizontal y densidad vertical impulsadas por población urbana, ingreso y variables climáticas hasta 2050. Es un escenario exploratorio de tendencia, no un pronóstico.
+
 ## Web + servidor
 
 Hace falta [uv](https://docs.astral.sh/uv/).
