@@ -505,12 +505,55 @@ function computeTrendFromPowerDict(
   return analyzeAnnualTrend(variable.key, variable.label, variable.unit, variable.ratio_scale, annual, monthly)
 }
 
-async function fetchPowerParams(lat: number, lon: number, paramKeys: string[], signal?: AbortSignal): Promise<Record<string, Record<string, number>>> {
-  const missing: string[] = []
-  const ck = coordKey(lat, lon)
-  for (const k of paramKeys) {
-    if (!powerCache.has(`${k}|${ck}`)) missing.push(k)
+const DERIVED_DEPS: Record<string, string[]> = {
+  DTR: ['T2M_MAX', 'T2M_MIN'],
+  VPD: ['T2M', 'RH2M'],
+  WBGT: ['T2M', 'RH2M'],
+}
+
+function derivePowerParams(ck: string) {
+  const t2m = powerCache.get(`T2M|${ck}`)
+  const tmax = powerCache.get(`T2M_MAX|${ck}`)
+  const tmin = powerCache.get(`T2M_MIN|${ck}`)
+  const rh = powerCache.get(`RH2M|${ck}`)
+
+  if (tmax && tmin && !powerCache.has(`DTR|${ck}`)) {
+    const dtr: Record<string, number> = {}
+    for (const k of Object.keys(tmax)) {
+      if (tmin[k] !== undefined) dtr[k] = Number((tmax[k] - tmin[k]).toFixed(4))
+    }
+    if (Object.keys(dtr).length) powerCache.set(`DTR|${ck}`, dtr)
   }
+
+  if (t2m && rh && (!powerCache.has(`VPD|${ck}`) || !powerCache.has(`WBGT|${ck}`))) {
+    const vpd: Record<string, number> = {}
+    const wbgt: Record<string, number> = {}
+    for (const k of Object.keys(t2m)) {
+      if (rh[k] === undefined) continue
+      const t = t2m[k]
+      const esKpa = 0.6108 * Math.exp((17.27 * t) / (t + 237.3))
+      const eaKpa = (esKpa * Math.max(0, Math.min(100, rh[k]))) / 100
+      vpd[k] = Number(Math.max(0, esKpa - eaKpa).toFixed(4))
+      wbgt[k] = Number((0.567 * t + 0.393 * (eaKpa * 10) + 3.94).toFixed(4))
+    }
+    if (Object.keys(vpd).length) powerCache.set(`VPD|${ck}`, vpd)
+    if (Object.keys(wbgt).length) powerCache.set(`WBGT|${ck}`, wbgt)
+  }
+}
+
+async function fetchPowerParams(lat: number, lon: number, paramKeys: string[], signal?: AbortSignal): Promise<Record<string, Record<string, number>>> {
+  const ck = coordKey(lat, lon)
+  const neededBase = new Set<string>()
+  for (const k of paramKeys) {
+    if (DERIVED_DEPS[k]) {
+      if (!powerCache.has(`${k}|${ck}`)) {
+        for (const dep of DERIVED_DEPS[k]) neededBase.add(dep)
+      }
+    } else {
+      neededBase.add(k)
+    }
+  }
+  const missing = [...neededBase].filter((k) => !powerCache.has(`${k}|${ck}`))
   if (missing.length > 0) {
     const url =
       `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${encodeURIComponent(missing.join(','))}` +
@@ -523,6 +566,7 @@ async function fetchPowerParams(lat: number, lon: number, paramKeys: string[], s
       if (params[k]) powerCache.set(`${k}|${ck}`, params[k])
     }
   }
+  derivePowerParams(ck)
   const out: Record<string, Record<string, number>> = {}
   for (const k of paramKeys) {
     const cached = powerCache.get(`${k}|${ck}`)
@@ -1101,6 +1145,34 @@ export async function staticGet<T>(path: string, signal?: AbortSignal): Promise<
       un_value_at_horizon: unFilt[unFilt.length - 1]?.mean ?? null,
     }
     return demoResp as T
+  }
+
+  if (pathname === '/api/worldbank/available') {
+    const country = (q.get('country') ?? 'NIC').toUpperCase()
+    const start = Number(q.get('start') ?? bundle.generated_start)
+    if (start === bundle.generated_start) {
+      const fromBundle = new Set<string>()
+      for (const [k, rel] of Object.entries(bundle.relate)) {
+        const parts = k.split('|')
+        if (parts[2] === country && (rel.relation?.points?.length ?? 0) >= 10) {
+          fromBundle.add(parts[1])
+        }
+      }
+      if (fromBundle.size > 0) {
+        return { country, indicators: catalog.indicators.map((i) => i.key).filter((k) => fromBundle.has(k)) } as T
+      }
+    }
+    const checks = await Promise.allSettled(
+      catalog.indicators.map(async (ind) => {
+        const s = await fetchWorldBankSeries(country, ind.key, signal)
+        const count = Object.keys(s).filter((y) => Number(y) >= start).length
+        return count >= 10 ? ind.key : null
+      }),
+    )
+    const indicators = checks
+      .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled' && r.value !== null)
+      .map((r) => r.value as string)
+    return { country, indicators } as T
   }
 
   if (pathname === '/api/relate') {

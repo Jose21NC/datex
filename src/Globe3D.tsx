@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
-import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import type { GeoJSONSource, MapLayerMouseEvent, MapMouseEvent, StyleSpecification } from 'maplibre-gl'
+import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
+
+maplibregl.setWorkerUrl(maplibreglWorkerUrl)
 import { cellColor } from './globeColors'
 import { fmtNum, shortVarName, tUnit, type Lang } from './i18n'
 
@@ -215,7 +219,7 @@ export function Globe3D({
     const spin = () => {
       if (interacting || !live.current.spinEnabled || map.getZoom() > 2.6) return
       const c = map.getCenter()
-      map.easeTo({ center: [c.lng - 3.2, c.lat], duration: 1000, easing: (t) => t })
+      map.easeTo({ center: [c.lng - 3.2, c.lat], duration: 1000, easing: (t: number) => t })
     }
     const stop = () => {
       interacting = true
@@ -252,9 +256,10 @@ export function Globe3D({
         type: 'line',
         source: 'cells',
         paint: {
-          'line-color': 'rgba(255,255,255,0.08)',
-          'line-width': 0.5,
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.4, 5.5, 0.7, 9, 0.3],
+          'line-color': 'rgba(255,255,255,0.18)',
+          'line-width': 0.7,
+          'line-dasharray': [2, 2],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.45, 5.5, 0.75, 9, 0.35],
         },
       })
       map.addLayer({
@@ -310,7 +315,7 @@ export function Globe3D({
       spin()
     })
 
-    map.on('mousemove', 'cells', (e) => {
+    map.on('mousemove', 'cells', (e: MapLayerMouseEvent) => {
       const f = e.features?.[0]
       if (!f) return
       map.getCanvas().style.cursor = 'pointer'
@@ -346,7 +351,7 @@ export function Globe3D({
       popup.remove()
     })
 
-    map.on('click', (e) => {
+    map.on('click', (e: MapMouseEvent) => {
       const z = map.getZoom()
       if (z < 3.6) {
         const hit = map.queryRenderedFeatures(e.point, { layers: ['cells'] })[0]

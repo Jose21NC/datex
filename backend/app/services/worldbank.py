@@ -5,6 +5,7 @@ países de las regiones de ejemplo, muestras guardadas en app/data/samples/world
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections import OrderedDict
@@ -18,6 +19,7 @@ WB_URL = "https://api.worldbank.org/v2/country/{country}/indicator/{indicator}"
 CACHE_TTL_S = 24 * 3600
 MAX_CACHE_ENTRIES = 512
 TIMEOUT = httpx.Timeout(45.0)
+FAST_TIMEOUT = httpx.Timeout(5.0)
 
 _cache: OrderedDict[tuple[str, str], tuple[float, dict[int, float]]] = OrderedDict()
 
@@ -36,9 +38,9 @@ def _parse(payload: list) -> dict[int, float]:
     }
 
 
-async def _fetch_live(country: str, indicator: str) -> dict[int, float]:
+async def _fetch_live(country: str, indicator: str, timeout: httpx.Timeout = TIMEOUT) -> dict[int, float]:
     params = {"format": "json", "date": f"{FIRST_YEAR}:{last_full_year()}", "per_page": 100}
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.get(WB_URL.format(country=country, indicator=indicator), params=params)
         r.raise_for_status()
         return _parse(r.json())
@@ -58,10 +60,11 @@ async def get_indicator(country: str, indicator: str) -> tuple[dict[int, float],
     hit = _cache.get(key)
     if hit and time.time() - hit[0] < CACHE_TTL_S:
         return hit[1], "banco-mundial"
+    sample = _sample(*key)
     try:
-        data = await _fetch_live(*key)
+        # Si ya existe muestra local, evita bloquear 45 s esperando al Banco Mundial
+        data = await _fetch_live(*key, timeout=FAST_TIMEOUT if sample is not None else TIMEOUT)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-        sample = _sample(*key)
         if sample is not None:
             return sample, "muestra-local"
         raise WorldBankUnavailable(
@@ -86,3 +89,17 @@ async def fetch_all(country: str) -> dict[str, dict[int, float]]:
                 if attempt == 1:
                     raise
     return out
+
+
+async def available_indicators(country: str, start: int = 1990, min_years: int = 10) -> list[str]:
+    """Devuelve las claves de indicadores con al menos `min_years` datos desde `start`."""
+    async def _check(key: str) -> str | None:
+        try:
+            raw, _ = await get_indicator(country, key)
+        except WorldBankUnavailable:
+            return None
+        count = sum(1 for y in raw if y >= start)
+        return key if count >= min_years else None
+
+    results = await asyncio.gather(*(_check(ind.key) for ind in INDICATORS))
+    return [k for k in results if k is not None]
